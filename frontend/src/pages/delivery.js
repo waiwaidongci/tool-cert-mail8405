@@ -15,6 +15,7 @@ export async function deliveryPage() {
     {label:'复核', render:row=>pill(REVIEW[row.review],row.review)},
     {label:'计算时间', render:row=>date(row.finished_at)},
     {label:'下载', render:row=>{
+      if (row.cleaning) return pill('清理中','cleaning');
       const download = button('下载 CSV',{class:'quiet'});
       download.addEventListener('click', handler(download,message,() =>
         workspace.download(`/runs/${row.id}/export`,`${spec.short_name}-${row.id}.csv`)));

@@ -8,6 +8,7 @@ from src.domain.spec import SPEC
 from src.models.jobs import Delivery, Run, Schedule
 from src.models.source import Dataset
 from src.services.audit import record
+from src.services.corrections import mapping_for, sanitize_rows
 from src.utils.exports import write_report
 from src.utils.time import now
 
@@ -61,10 +62,19 @@ def claim():
         return job.id, job.attempt, records, job.params
 
 
+def _sanitize_current(job_id, rows):
+    with Session() as db:
+        name = db.scalar(select(Dataset.name).select_from(Run)
+                         .join(Dataset, Run.dataset_id == Dataset.id).where(Run.id == job_id))
+        return sanitize_rows(rows, mapping_for(db, name)) if name else rows
+
+
 def execute(lease):
     job_id, attempt, rows, params = lease
     result = export = failure = None
     try:
+        # 旧计算迟到返回时套用最新纠正，旧姓名不会随结果入库或写进班报。
+        rows = _sanitize_current(job_id, rows)
         result = analyze(rows, params)
         export = write_report(job_id, attempt, result)
     except ValueError as error:

@@ -12,7 +12,17 @@ export async function results(route, refresh) {
   const {spec,runs,datasets} = workspace;
   const id = route.id || runs[0]?.id;
   if (!id) return panel(spec.pages[3],empty('还没有可查看的运行结果。','#run','前往运行'));
-  const job = await workspace.getRun(id);
+  let job;
+  try { job = await workspace.getRun(id); }
+  catch (error) {
+    if (error.status !== 409) throw error;
+    const original = location.hash;
+    const status = el('p',{role:'status'},'该批次正在清理班组信息，清理完成后会自动展示。');
+    poll(()=>workspace.getRun(id).catch(()=>null), item=>item, ()=>location.hash===original)
+      .then(result=>{if (result && status.isConnected && location.hash===original) refresh();
+        else if(status.isConnected) status.textContent='仍在清理，请点击刷新检查。';});
+    return panel('批次清理中',pill('清理中','cleaning'),status,button('刷新',{class:'quiet',onClick:refresh}));
+  }
   const source = datasets.find(item => item.id === job.dataset_id);
   const message = feedback();
   const finished = item => item.status === 'complete' || item.status === 'failed';

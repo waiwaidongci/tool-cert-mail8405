@@ -1,6 +1,7 @@
 import logging
 import time
 from pathlib import Path
+from src.services.cleanup import clean_next
 from src.services.execution import claim, execute, materialize_due
 from src.utils.wakeup import wait
 
@@ -13,6 +14,7 @@ def main():
     while True:
         try:
             materialize_due()
+            clean_next()
             lease = claim()
             heartbeat.touch()
             if lease:

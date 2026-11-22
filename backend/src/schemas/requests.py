@@ -24,6 +24,13 @@ class ReviewRequest(Request):
     note: str = Field(min_length=1, max_length=500)
     decision: str = Field(default='', max_length=120)
 
+class CorrectionItem(Request):
+    old_name: str = Field(min_length=1, max_length=60)
+    new_name: str = Field(min_length=1, max_length=60)
+
+class CorrectionRequest(Request):
+    corrections: list[CorrectionItem] = Field(min_length=1, max_length=200)
+
 class ScheduleRequest(RunRequest):
     recipient: str = Field(min_length=1, max_length=100)
     first_at: datetime

@@ -12,11 +12,14 @@ from src.models.jobs import Run
 from src.models.source import Dataset
 from src.schemas.requests import ReviewRequest, RunRequest
 from src.services.audit import record
+from src.services.corrections import cleaning_ids
 from src.services.validation import normalize_params
 from src.utils import views
 from src.utils.wakeup import wake
 
 router = APIRouter(prefix='/runs')
+
+BLOCKED = '该批次正在清理班组信息，请稍后查看'
 
 
 def require_job(db, run_id, lock=False):
@@ -26,9 +29,16 @@ def require_job(db, run_id, lock=False):
     return item
 
 
+def require_readable(item, db):
+    if item.dataset_id in cleaning_ids(db):
+        raise HTTPException(409, BLOCKED)
+
+
 @router.get('')
 def index(db: Session = Depends(connection), actor: User = Depends(current)):
-    return [views.run(item) for item in db.scalars(select(Run).order_by(Run.id.desc()).limit(100))]
+    blocked = cleaning_ids(db)
+    return [views.run(item, cleaning=item.dataset_id in blocked)
+            for item in db.scalars(select(Run).order_by(Run.id.desc()).limit(100))]
 
 
 @router.post('', status_code=202)
@@ -47,12 +57,15 @@ def create(body: RunRequest, db: Session = Depends(connection),
 
 @router.get('/{run_id}')
 def detail(run_id: int, db: Session = Depends(connection), actor: User = Depends(current)):
-    return views.run(require_job(db, run_id), detail=True)
+    item = require_job(db, run_id)
+    require_readable(item, db)
+    return views.run(item, detail=True)
 
 
 @router.get('/{run_id}/export')
 def export(run_id: int, db: Session = Depends(connection), actor: User = Depends(current)):
     item = require_job(db, run_id)
+    require_readable(item, db)
     if not item.export_file:
         raise HTTPException(409, '此记录尚无可下载结果')
     path = ARTIFACTS / item.export_file
@@ -65,6 +78,7 @@ def export(run_id: int, db: Session = Depends(connection), actor: User = Depends
 def review(run_id: int, body: ReviewRequest, db: Session = Depends(connection),
            actor: User = Depends(allow(Role.ADMIN))):
     item = require_job(db, run_id, lock=True)
+    require_readable(item, db)
     if item.status != Status.COMPLETE or item.review != Review.PENDING:
         raise HTTPException(409, '只有已完成且待复核的记录可以提交决定')
     if body.review == Review.PENDING:

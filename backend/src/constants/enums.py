@@ -15,3 +15,8 @@ class Review(StrEnum):
     PENDING = 'pending'
     ACCEPTED = 'accepted'
     RETURNED = 'returned'
+
+class Cleanup(StrEnum):
+    CLEANING = 'cleaning'
+    DONE = 'done'
+    FAILED = 'failed'

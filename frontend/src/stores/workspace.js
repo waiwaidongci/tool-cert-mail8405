@@ -11,6 +11,8 @@ export const workspace = {
   getDataset: (id, offset = 0) => call(`/datasets/${id}?offset=${offset}`),
   getRun: id => call(`/runs/${id}`),
   upload: data => call('/datasets', data),
+  corrections: id => call(`/datasets/${id}/corrections`),
+  correct: (id, data) => call(`/datasets/${id}/corrections`, data),
   start: data => call('/runs', data),
   review: (id, data) => call(`/runs/${id}/review`, data),
   audit: () => call('/audit'),
